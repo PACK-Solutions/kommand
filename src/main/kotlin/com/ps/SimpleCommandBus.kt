@@ -4,7 +4,7 @@ private typealias ChainFunction = (Command<*>) -> CommandResult<*>
 
 class SimpleCommandBus(
     val handlers: Map<Command<*>, CommandHandler<out Command<*>, *>> = emptyMap(),
-    middlewares: List<CommandMiddleware> = emptyList()
+    middlewares: List<CommandMiddleware> = emptyList(),
 ) : CommandBus {
 
     private val chain: ChainFunction
@@ -19,7 +19,7 @@ class SimpleCommandBus(
     private fun wrap(mw: CommandMiddleware, next: ChainFunction): ChainFunction = { cmd ->
         mw.invoke(
             cmd as Command<Any?>,
-            next as (Command<Any?>) -> CommandResult<Any?>
+            next as (Command<Any?>) -> CommandResult<Any?>,
         )
     }
 

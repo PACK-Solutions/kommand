@@ -1,29 +1,29 @@
 style:
-  WildcardImport:
-    active: false
-  MaxLineLength:
-    active: true
-    maxLineLength: 160
+    WildcardImport:
+        active: false
+    MaxLineLength:
+        active: true
+        maxLineLength: 160
 
 formatting:
-  NoWildcardImports:
-    active: false
-  MaximumLineLength:
-    active: true
-    maxLineLength: 160
-  ParameterListWrapping:
-    active: false
+    NoWildcardImports:
+        active: false
+    MaximumLineLength:
+        active: true
+        maxLineLength: 160
+    ParameterListWrapping:
+        active: false
 
 complexity:
-  LongParameterList:
-    active: true
-    functionThreshold: 10
-    constructorThreshold: 10
-    ignoreDefaultParameters: true
-    ignoreAnnotated: Factory
+    LongParameterList:
+        active: true
+        functionThreshold: 10
+        constructorThreshold: 10
+        ignoreDefaultParameters: true
+        ignoreAnnotated: Factory
 
 exceptions:
-  TooGenericExceptionThrown:
-    active: false
-  TooGenericExceptionCaught:
-    active: false
+    TooGenericExceptionThrown:
+        active: false
+    TooGenericExceptionCaught:
+        active: false

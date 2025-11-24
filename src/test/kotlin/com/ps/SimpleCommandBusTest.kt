@@ -13,7 +13,7 @@ class SimpleCommandBusTest {
         val accountId: String,
         val amountCents: Long,
         val actorId: String,
-        val actorRoles: Set<String>
+        val actorRoles: Set<String>,
     ) : Command<Unit>
 
     // Domain events
@@ -31,7 +31,7 @@ class SimpleCommandBusTest {
             require(command.amountCents > 0) { "amount must be positive" }
             val events = listOf(
                 DepositInitiated(command.accountId, command.amountCents, command.actorId),
-                FundsDeposited(command.accountId, command.amountCents)
+                FundsDeposited(command.accountId, command.amountCents),
             )
             return CommandResult(Ok(Unit), events)
         }
@@ -39,7 +39,7 @@ class SimpleCommandBusTest {
 
     // Middleware: permission checker. Requires either 'teller' or 'admin' role to proceed.
     class PermissionMiddleware(
-        private val requiredAnyOf: Set<String> = setOf("teller", "admin")
+        private val requiredAnyOf: Set<String> = setOf("teller", "admin"),
     ) : CommandMiddleware {
         override fun <R> invoke(command: Command<R>, next: (Command<R>) -> CommandResult<R>): CommandResult<R> {
             return when (command) {
@@ -50,7 +50,7 @@ class SimpleCommandBusTest {
                         val missing = requiredAnyOf.first()
                         CommandResult(
                             Err(PermissionDenied("actor ${command.actorId} lacks role $missing")),
-                            listOf(PermissionDeniedEvent(command.actorId, missing))
+                            listOf(PermissionDeniedEvent(command.actorId, missing)),
                         )
                     } else {
                         next(command)
@@ -86,7 +86,7 @@ class SimpleCommandBusTest {
             accountId = "ACC-123",
             amountCents = 25_00,
             actorId = "user-42",
-            actorRoles = setOf("teller")
+            actorRoles = setOf("teller"),
         )
 
         val capturedEventSets = mutableListOf<List<DomainEvent>>()
@@ -100,7 +100,7 @@ class SimpleCommandBusTest {
 
         val bus = SimpleCommandBus(
             handlers = mapOf(cmd to DepositFundsHandler()),
-            middlewares = listOf(capture, logger, perms)
+            middlewares = listOf(capture, logger, perms),
         )
 
         // Act (we ignore return value; execute returns internal Result cast by bus)
@@ -110,9 +110,9 @@ class SimpleCommandBusTest {
         assertEquals(
             listOf(
                 "logger1:before DepositFunds",
-                "logger1:after DepositFunds"
+                "logger1:after DepositFunds",
             ),
-            logs
+            logs,
         )
 
         // Assert final event set observed by capture
@@ -121,9 +121,9 @@ class SimpleCommandBusTest {
             listOf(
                 DepositInitiated("ACC-123", 25_00, "user-42"),
                 FundsDeposited("ACC-123", 25_00),
-                Logged("logger1 handled DepositFunds")
+                Logged("logger1 handled DepositFunds"),
             ),
-            events
+            events,
         )
     }
 
@@ -138,7 +138,7 @@ class SimpleCommandBusTest {
             accountId = "ACC-XYZ",
             amountCents = 10_00,
             actorId = "user-7",
-            actorRoles = setOf("customer")
+            actorRoles = setOf("customer"),
         )
 
         // Capture final event set
@@ -153,7 +153,7 @@ class SimpleCommandBusTest {
 
         val bus = SimpleCommandBus(
             handlers = mapOf(cmd to DepositFundsHandler()),
-            middlewares = listOf(capture, logger, perms)
+            middlewares = listOf(capture, logger, perms),
         )
 
         // Act
@@ -168,9 +168,9 @@ class SimpleCommandBusTest {
         assertEquals(
             listOf(
                 PermissionDeniedEvent("user-7", "teller"),
-                Logged("logger1 handled DepositFunds")
+                Logged("logger1 handled DepositFunds"),
             ),
-            events
+            events,
         )
 
         // Sanity: there should be no FundsDeposited event
