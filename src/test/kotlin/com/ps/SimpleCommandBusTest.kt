@@ -103,8 +103,8 @@ class SimpleCommandBusTest {
             middlewares = listOf(capture, logger, perms),
         )
 
-        // Act (we ignore return value; execute returns internal Result cast by bus)
-        bus.execute(cmd)
+        // Act
+        val returned = bus.execute(cmd)
 
         // Assert logs order (foldRight => capture wraps logger wraps perms wraps handler)
         assertEquals(
@@ -125,6 +125,10 @@ class SimpleCommandBusTest {
             ),
             events,
         )
+
+        // Assert the returned CommandResult mirrors the events and is Ok
+        assertTrue(returned.result.isOk)
+        assertEquals(events, returned.events)
     }
 
     @Test
@@ -157,7 +161,7 @@ class SimpleCommandBusTest {
         )
 
         // Act
-        bus.execute(cmd)
+        val returned = bus.execute(cmd)
 
         // Assert: permission middleware short-circuits the handler, but since the logger wraps it,
         // the logger still logs both before and after around the short-circuited call.
@@ -175,5 +179,9 @@ class SimpleCommandBusTest {
 
         // Sanity: there should be no FundsDeposited event
         assertTrue(events.none { it is FundsDeposited })
+
+        // Assert returned result is Err with the expected error and events mirror captured
+        assertTrue(returned.result.isErr)
+        assertEquals(events, returned.events)
     }
 }

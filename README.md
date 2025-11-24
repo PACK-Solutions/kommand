@@ -36,10 +36,10 @@ dependencies {
 }
 ```
 
-   If you publish it to your internal repository, the coordinates are based on the current build file:
-   group: com.ps
-   name: kommand
-   version: 1.0-SNAPSHOT
+If you publish it to your internal repository, the coordinates are based on the current build file:
+group: com.ps
+name: kommand
+version: 1.0-SNAPSHOT
 
 2) Define your Command and Handler
 
@@ -47,9 +47,9 @@ dependencies {
 // A command returning a String
 data class Greet(val name: String) : Command<String>
 
-class GreetHandler : CommandHandler<Greet, CommandResult<String>> {
+class GreetHandler : CommandHandler<Greet, String> {
     override fun handle(command: Greet): CommandResult<String> =
-        CommandResult.success("Hello, ${'$'}{command.name}!")
+        CommandResult(Ok("Hello, ${'$'}{command.name}!"))
 }
 ```
 
@@ -72,13 +72,18 @@ class LoggingMiddleware : CommandMiddleware {
 ```kotlin
 val bus = SimpleCommandBus(
     handlers = mapOf(
-        Greet("unused-key") to GreetHandler() // see note below on handler lookup
+        // NOTE: SimpleCommandBus maps handlers by command INSTANCE (not type).
+        // For this minimal implementation you must register the specific instance you will execute.
+        // See the note below for alternatives.
+        Greet("World") to GreetHandler()
     ),
     middlewares = listOf(LoggingMiddleware())
 )
 
-val message: String = bus.execute(Greet("World"))
-println(message) // -> Hello, World!
+// Execute now returns the full CommandResult, including the Result and any events
+val result = bus.execute(Greet("World"))
+println(result.result) // -> Ok(Hello, World!)
+println(result.events) // -> [Logged(name=LoggingMiddleware handled Greet)] if your middleware adds events
 ```
 
 Build
@@ -91,3 +96,12 @@ Why Kommand?
 - Keep business logic explicit and decoupled
 - Make cross‑cutting concerns composable with middleware
 - Encourage testable, intention‑revealing code
+
+Notes and design trade‑offs
+
+- Handler lookup key: `SimpleCommandBus` keeps things tiny by using the concrete command instance as the key in its `handlers` map:
+  `Map<Command<*>, CommandHandler<..., ...>>`. If you prefer type‑based routing (e.g., by `KClass<out Command<*>>`), you can adapt/extend the bus easily.
+- Execute return value: `CommandBus.execute` returns the full `CommandResult<R>` (containing a `Result<R, CommandError>` and `events`). This lets callers
+  inspect success/error and emitted events explicitly.
+- Events: Handlers return domain events alongside the result in `CommandResult.events`. Middleware can publish them to a bus of your choice or aggregate them
+  for later processing.
