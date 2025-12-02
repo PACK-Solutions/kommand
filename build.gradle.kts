@@ -12,6 +12,7 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("com.michael-bull.kotlin-result:kotlin-result:2.1.0")
     // Detekt formatting plugin (must match Detekt plugin version)
     detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.8")
