@@ -13,7 +13,7 @@ package com.ps.cqrs.command
  * data class ValidationError(val message: String) : CommandError
  *
  * class CreateHandler : CommandHandler<Create, Unit> {
- *     override fun handle(command: Create): CommandResult<Unit> {
+ *     override suspend fun handle(command: Create): CommandResult<Unit> {
  *         return if (command.name.isBlank()) {
  *             CommandResult(result = Err(ValidationError("name cannot be blank")))
  *         } else {

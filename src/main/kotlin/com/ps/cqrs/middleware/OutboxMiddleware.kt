@@ -1,13 +1,14 @@
-package com.ps.cqrs
+package com.ps.cqrs.middleware
 
+import com.ps.cqrs.MessageOutboxRepository
 import com.ps.cqrs.command.Command
 import com.ps.cqrs.command.CommandResult
 
 /**
- * Middleware that persists emitted domain events to a [MessageOutboxRepository].
+ * Middleware that persists emitted domain events to a [com.ps.cqrs.MessageOutboxRepository].
  *
  * This lets you keep handler code focused on producing events while ensuring
- * they are captured for later publication by [OutboxPublisher].
+ * they are captured for later publication by [com.ps.cqrs.OutboxPublisher].
  *
  * ## Example
  * ```kotlin
@@ -28,7 +29,7 @@ class OutboxMiddleware(
 ) : CommandMiddleware {
     override suspend fun <R> invoke(
         command: Command<R>,
-        next: suspend (Command<R>) -> CommandResult<R>
+        next: suspend (Command<R>) -> CommandResult<R>,
     ): CommandResult<R> {
         val result = next(command)
         result.events.forEach { outboxRepository.save(it) }

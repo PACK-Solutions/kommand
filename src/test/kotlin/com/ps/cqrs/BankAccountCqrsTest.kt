@@ -1,26 +1,15 @@
 package com.ps.cqrs
 
+import com.ps.cqrs.command.CommandBusDsl.buildCommandBus
 import com.ps.cqrs.domain.events.BaseDomainEvent
 import com.ps.cqrs.domain.events.DomainEvent
 import com.ps.cqrs.events.DomainEventHandler
 import com.ps.cqrs.events.DomainEventPublisher
 import com.ps.cqrs.events.EventDispatcher
-import com.ps.cqrs.testfixtures.Account
-import com.ps.cqrs.testfixtures.AccountId
-import com.ps.cqrs.testfixtures.AccountOpened
-import com.ps.cqrs.testfixtures.AccountReadModel
-import com.ps.cqrs.testfixtures.DepositHandler
-import com.ps.cqrs.testfixtures.DepositMoney
-import com.ps.cqrs.testfixtures.GetAccountBalanceQuery
-import com.ps.cqrs.testfixtures.GetAccountBalanceQueryHandler
-import com.ps.cqrs.testfixtures.InMemoryOutbox
-import com.ps.cqrs.testfixtures.MoneyDeposited
-import com.ps.cqrs.testfixtures.MoneyWithdrawn
-import com.ps.cqrs.testfixtures.OpenAccount
-import com.ps.cqrs.testfixtures.OpenAccountHandler
-import com.ps.cqrs.testfixtures.OverdraftRejected
-import com.ps.cqrs.testfixtures.WithdrawHandler
-import com.ps.cqrs.testfixtures.WithdrawMoney
+import com.ps.cqrs.middleware.OutboxMiddleware
+import com.ps.cqrs.middleware.TransactionMiddleware
+import com.ps.cqrs.query.QueryBusDsl.buildQueryBus
+import com.ps.cqrs.testfixtures.*
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -86,8 +75,10 @@ class BankAccountCqrsTest {
         registerDomainEventHandlers(dispatcher, readModel)
         published.forEach { event -> dispatcher.dispatch(event) }
 
-        val queryHandler = GetAccountBalanceQueryHandler(readModel)
-        val balance = queryHandler(GetAccountBalanceQuery(scenario.accountId))
+        val qbus = buildQueryBus {
+            handle(GetAccountBalanceQueryHandler(readModel))
+        }
+        val balance = qbus.execute<Long>(GetAccountBalanceQuery(scenario.accountId))
         assertEquals(80, balance)
     }
 }
@@ -109,14 +100,16 @@ private suspend fun runScenario(): Scenario {
     val account = Account(accountId)
     val testStart = java.time.Instant.now()
     val outbox = InMemoryOutbox()
-    val bus = SimpleCommandBus(
-        handlers = mapOf(
-            OpenAccount::class to OpenAccountHandler(account),
-            DepositMoney::class to DepositHandler(account),
-            WithdrawMoney::class to WithdrawHandler(account),
+    val bus = buildCommandBus(
+        middlewares = listOf(
+            TransactionMiddleware(NoopTransactionManager),
+            OutboxMiddleware(outbox),
         ),
-        middlewares = listOf(OutboxMiddleware(outbox))
-    )
+    ) {
+        handle(OpenAccountHandler(account))
+        handle(DepositHandler(account))
+        handle(WithdrawHandler(account))
+    }
 
     val r1 = bus.execute(OpenAccount(accountId, initial = 100))
     val r2 = bus.execute(DepositMoney(accountId, amount = 50))

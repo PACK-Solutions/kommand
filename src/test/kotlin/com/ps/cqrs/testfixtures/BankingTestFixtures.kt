@@ -84,6 +84,7 @@ class Account(override val id: AccountId) : AggregateRoot<AccountId>() {
                 recordEvent(OverdraftRejected(id.value, amount, balance))
                 Err(ValidationError("insufficient funds"))
             }
+
             else -> {
                 balance -= amount
                 recordEvent(MoneyWithdrawn(id.value, amount, balance))
@@ -161,6 +162,11 @@ class InMemoryOutbox : MessageOutboxRepository {
     }
 
     override suspend fun findUnpublished(limit: Int): List<OutboxMessage> = messages.take(limit)
-    override suspend fun markAsPublished(id: MessageId) { /* test impl */ }
-    override suspend fun incrementRetryCount(id: MessageId) { /* test impl */ }
+    override suspend fun markAsPublished(id: MessageId) {
+        /* test impl */
+    }
+
+    override suspend fun incrementRetryCount(id: MessageId) {
+        /* test impl */
+    }
 }

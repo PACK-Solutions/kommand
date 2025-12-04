@@ -1,22 +1,25 @@
-package com.ps.cqrs
+package com.ps.cqrs.command
 
-import com.ps.cqrs.command.Command
-import com.ps.cqrs.command.CommandBus
-import com.ps.cqrs.command.CommandHandler
-import com.ps.cqrs.command.CommandResult
+import com.ps.cqrs.middleware.CommandMiddleware
+import com.ps.cqrs.middleware.OutboxMiddleware
+import com.ps.cqrs.middleware.TransactionMiddleware
 import kotlin.reflect.KClass
 
 /**
- * Minimal [com.ps.cqrs.command.CommandBus] implementation that composes a middleware chain and
+ * Minimal [CommandBus] implementation that composes a middleware chain and
  * dispatches commands to handlers.
  *
  * Important notes:
- * - Handler lookup is performed using the [KClass] of the concrete [com.ps.cqrs.command.Command] in [handlers].
+ * - Handler lookup is performed using the [KClass] of the concrete [Command] in [handlers].
  *   Register your handlers keyed by the command class (e.g. `CreateTodo::class`).
- * - Middlewares are composed outer-to-inner using `foldRight`, so the first middleware
- *   in the list becomes the outermost wrapper (runs before and after the rest).
- * - The [execute] method returns the full [com.ps.cqrs.command.CommandResult] from the middleware chain/handler,
+ * - Middlewares are composed so the first middleware in the list becomes the outermost
+ *   wrapper (runs before and after the rest). This is implemented by iterating the list
+ *   in reverse at initialization time.
+ * - The [execute] method returns the full [CommandResult] from the middleware chain/handler,
  *   allowing callers to inspect both the success/error and any emitted events.
+ *
+ * Handler lookup is by exact command class. If you use inheritance for commands, register
+ * handlers for each concrete subtype explicitly.
  *
  * ## Example
  * ```kotlin
@@ -27,7 +30,7 @@ import kotlin.reflect.KClass
  *     override suspend fun handle(command: CreateTodo): CommandResult<TodoId> {
  *         val id = TodoId("t-1")
  *         return CommandResult(
- *             result = com.github.michaelbull.result.Ok(id),
+ *             result = Ok(id),
  *             events = listOf(TodoCreated(command.title))
  *         )
  *     }
@@ -60,6 +63,9 @@ class SimpleCommandBus(
     private val chain: suspend (Command<Any?>) -> CommandResult<Any?>
 
     init {
+        // Middleware configuration safety checks
+        validateMiddlewareOrdering(middlewares)
+
         var next: suspend (Command<Any?>) -> CommandResult<Any?> = { cmd -> dispatch(cmd) }
         for (mw in middlewares.asReversed()) {
             val currentNext = next
@@ -70,7 +76,7 @@ class SimpleCommandBus(
 
     @Suppress("UNCHECKED_CAST")
     private suspend fun dispatch(command: Command<Any?>): CommandResult<Any?> {
-        val handler = handlers[command::class] ?: error("No handler registered for command ${command::class}")
+        val handler = handlers[command::class] ?: error(missingHandlerMessage(command::class))
         val typed = handler as CommandHandler<Command<Any?>, Any?>
         return typed.handle(command)
     }
@@ -78,5 +84,27 @@ class SimpleCommandBus(
     @Suppress("UNCHECKED_CAST")
     override suspend fun <R> execute(command: Command<R>): CommandResult<R> {
         return chain(command as Command<Any?>) as CommandResult<R>
+    }
+
+    private fun missingHandlerMessage(command: KClass<*>): String {
+        val known = if (handlers.isEmpty()) "<none>" else handlers.keys.joinToString { it.simpleName ?: it.toString() }
+        return "No handler registered for command $command. Registered command types: $known. " +
+            "Ensure you registered the handler keyed by the command KClass or use CommandBusBuilder DSL."
+    }
+
+    private fun validateMiddlewareOrdering(middlewares: List<CommandMiddleware>) {
+        // Ensure OutboxMiddleware appears at most once
+        val outboxes = middlewares.filterIsInstance<OutboxMiddleware>()
+        require(outboxes.size <= 1) {
+            "OutboxMiddleware is registered ${outboxes.size} times. It must appear at most once."
+        }
+        // If TransactionMiddleware present, ensure it appears before OutboxMiddleware
+        val txIndex = middlewares.indexOfFirst { it is TransactionMiddleware }
+        val outboxIndex = middlewares.indexOfFirst { it is OutboxMiddleware }
+        if (txIndex >= 0 && outboxIndex >= 0) {
+            require(txIndex < outboxIndex) {
+                "TransactionMiddleware must be placed before OutboxMiddleware to ensure outbox atomicity."
+            }
+        }
     }
 }

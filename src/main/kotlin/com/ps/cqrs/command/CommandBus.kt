@@ -4,7 +4,7 @@ package com.ps.cqrs.command
  * Dispatches [Command]s to their corresponding handlers.
  *
  * Implementations are responsible for locating the appropriate [CommandHandler]
- * and orchestrating any [com.ps.cqrs.CommandMiddleware] that should run before/after the handler.
+ * and orchestrating any [com.ps.cqrs.middleware.CommandMiddleware] that should run before/after the handler.
  *
  * ## Example
  * ```kotlin
@@ -12,7 +12,7 @@ package com.ps.cqrs.command
  * data class CreateUser(val email: String) : Command<UserId>
  *
  * class CreateUserHandler : CommandHandler<CreateUser, UserId> {
- *     override fun handle(command: CreateUser): CommandResult<UserId> {
+ *     override suspend fun handle(command: CreateUser): CommandResult<UserId> {
  *         val id = UserId("123")
  *         val events = listOf(UserCreatedEvent(command.email))
  *         return CommandResult(result = Ok(id), events = events)

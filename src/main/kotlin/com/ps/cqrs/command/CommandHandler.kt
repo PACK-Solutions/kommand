@@ -15,7 +15,7 @@ package com.ps.cqrs.command
  * data class Registered(val email: String) : DomainEvent
  *
  * class RegisterHandler : CommandHandler<Register, UserId> {
- *     override fun handle(command: Register): CommandResult<UserId> {
+ *     override suspend fun handle(command: Register): CommandResult<UserId> {
  *         val id = UserId("u-1")
  *         return CommandResult(
  *             result = Ok(id),

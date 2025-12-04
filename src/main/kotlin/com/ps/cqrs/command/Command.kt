@@ -16,7 +16,7 @@ package com.ps.cqrs.command
  *
  * // Provide a handler and register it in a CommandBus (see SimpleCommandBus)
  * val handler = object : CommandHandler<SayHelloCommand, String> {
- *     override fun handle(command: SayHelloCommand): CommandResult<String> {
+ *     override suspend fun handle(command: SayHelloCommand): CommandResult<String> {
  *         return CommandResult(result = Ok("Hello, ${command.name}!"))
  *     }
  * }

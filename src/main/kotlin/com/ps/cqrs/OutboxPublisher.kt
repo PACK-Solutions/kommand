@@ -8,7 +8,7 @@ import com.ps.cqrs.events.DomainEventPublisher
  *
  * Typical flow:
  * 1. Handlers emit [com.ps.cqrs.domain.events.DomainEvent]s via [com.ps.cqrs.command.CommandResult.events]
- * 2. [OutboxMiddleware] stores them in the outbox (same transaction)
+ * 2. [com.ps.cqrs.middleware.OutboxMiddleware] stores them in the outbox (same transaction)
  * 3. A background job periodically invokes this publisher
  *
  * ## Example

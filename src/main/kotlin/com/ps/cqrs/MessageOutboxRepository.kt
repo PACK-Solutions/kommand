@@ -1,13 +1,14 @@
 package com.ps.cqrs
 
 import com.ps.cqrs.domain.events.DomainEvent
+import java.time.Instant
 
 /**
  * Repository abstraction for the Outbox pattern.
  *
  * Implement this interface to persist domain events as outbox messages so they can
  * be published later by an [OutboxPublisher]. The repository is typically used by
- * [OutboxMiddleware] inside the same transaction as command handling.
+ * [com.ps.cqrs.middleware.OutboxMiddleware] inside the same transaction as command handling.
  *
  * ## Example
  * ```kotlin
@@ -47,6 +48,8 @@ data class OutboxMessage(
     val id: MessageId,
     val event: DomainEvent,
     val retryCount: Int = 0,
+    val nextAttemptAt: Instant? = null,
+    val published: Boolean = false,
 )
 
 @JvmInline

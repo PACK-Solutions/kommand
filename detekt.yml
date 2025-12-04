@@ -20,7 +20,6 @@ complexity:
         functionThreshold: 10
         constructorThreshold: 10
         ignoreDefaultParameters: true
-        ignoreAnnotated: Factory
 
 exceptions:
     TooGenericExceptionThrown:

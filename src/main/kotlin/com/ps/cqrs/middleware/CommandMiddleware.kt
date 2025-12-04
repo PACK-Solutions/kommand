@@ -1,4 +1,4 @@
-package com.ps.cqrs
+package com.ps.cqrs.middleware
 
 import com.ps.cqrs.command.Command
 import com.ps.cqrs.command.CommandResult
@@ -6,7 +6,7 @@ import com.ps.cqrs.command.CommandResult
 /**
  * Middleware that can observe, short‑circuit, or augment command handling.
  *
- * Middlewares are composed into a chain by [SimpleCommandBus] so that each
+ * Middlewares are composed into a chain by [com.ps.cqrs.command.SimpleCommandBus] so that each
  * middleware can run logic before and/or after the next component in the
  * chain (another middleware or the final [com.ps.cqrs.command.CommandHandler]).
  *
@@ -14,7 +14,10 @@ import com.ps.cqrs.command.CommandResult
  * ```kotlin
  * // Simple logging middleware
  * class LoggingMiddleware : CommandMiddleware {
- *     override fun <R> invoke(command: Command<R>, next: (Command<R>) -> CommandResult<R>): CommandResult<R> {
+ *     override suspend fun <R> invoke(
+ *         command: Command<R>,
+ *         next: suspend (Command<R>) -> CommandResult<R>
+ *     ): CommandResult<R> {
  *         println("Handling: ${command::class.simpleName}")
  *         val result = next(command)
  *         println("Handled with result: ${result.result}")
@@ -31,7 +34,7 @@ import com.ps.cqrs.command.CommandResult
 interface CommandMiddleware {
     /**
      * Intercepts the execution of [command]. Call [next] to continue the chain
-     * or return a [com.ps.cqrs.command.CommandResult] directly to short‑circuit.
+     * or return a [CommandResult] directly to short‑circuit.
      *
      * Implementations may transform the returned result, for example,
      * by appending [com.ps.cqrs.domain.events.DomainEvent]s.
@@ -39,10 +42,10 @@ interface CommandMiddleware {
      * @param R the success type carried by the command
      * @param command the command instance being executed
      * @param next the function that invokes the next middleware or handler
-     * @return the (possibly transformed) [com.ps.cqrs.command.CommandResult]
+     * @return the (possibly transformed) [CommandResult]
      */
     suspend fun <R> invoke(
         command: Command<R>,
-        next: suspend (Command<R>) -> CommandResult<R>
+        next: suspend (Command<R>) -> CommandResult<R>,
     ): CommandResult<R>
 }

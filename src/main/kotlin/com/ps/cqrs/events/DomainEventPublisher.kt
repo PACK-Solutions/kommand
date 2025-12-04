@@ -3,7 +3,7 @@ package com.ps.cqrs.events
 import com.ps.cqrs.domain.events.DomainEvent
 
 /**
- * Publishes [com.ps.cqrs.domain.events.DomainEvent]s to the outside world (e.g. messaging, listeners).
+ * Publishes [DomainEvent]s to the outside world (e.g. messaging, listeners).
  *
  * In applications that use the outbox pattern, you typically persist events
  * to an outbox within the same transaction as your command handling, and then

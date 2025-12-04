@@ -20,11 +20,12 @@ Highlights
 
 Domain modeling helpers: Entity, ValueObject, AggregateRoot
 
-Kommand includes a few tiny building blocks to help you keep your domain model clear and consistent. They are intentionally minimal and unopinionated so you can adopt only what you need.
+Kommand includes a few tiny building blocks to help you keep your domain model clear and consistent. They are intentionally minimal and unopinionated so you can
+adopt only what you need.
 
 - ValueObject (`src/main/kotlin/com/ps/cqrs/domain/ValueObject.kt`)
-  - Marker interface for immutable value types defined entirely by their attributes
-  - Prefer data classes that implement `ValueObject`
+    - Marker interface for immutable value types defined entirely by their attributes
+    - Prefer data classes that implement `ValueObject`
 
   Example:
 
@@ -34,8 +35,8 @@ Kommand includes a few tiny building blocks to help you keep your domain model c
   ```
 
 - Entity<ID> (`src/main/kotlin/com/ps/cqrs/domain/Entity.kt`)
-  - Base abstract class for identity-based domain objects
-  - Equality and hash code are based on the `id` only
+    - Base abstract class for identity-based domain objects
+    - Equality and hash code are based on the `id` only
 
   Example:
 
@@ -49,9 +50,9 @@ Kommand includes a few tiny building blocks to help you keep your domain model c
   ```
 
 - AggregateRoot<ID> (`src/main/kotlin/com/ps/cqrs/domain/AggregateRoot.kt`)
-  - Special entity that acts as the consistency boundary for a cluster of objects
-  - Records domain events during operations and exposes them via `domainEvents`
-  - Provides helpers such as `recordEvent`, `clearEvents`, `hasEvents`, and basic audit fields (`createdAt`, `updatedAt`, soft delete, etc.)
+    - Special entity that acts as the consistency boundary for a cluster of objects
+    - Records domain events during operations and exposes them via `domainEvents`
+    - Provides helpers such as `recordEvent`, `clearEvents`, `hasEvents`, and basic audit fields (`createdAt`, `updatedAt`, soft delete, etc.)
 
   Example (simplified):
 
@@ -143,7 +144,8 @@ println(result.events) // -> [Logged(name=LoggingMiddleware handled Greet)] if y
 
 Outbox pattern and event publishing
 
-Kommand encourages handlers to return domain events alongside their result. You can then persist those events to an outbox within the same transaction and publish them asynchronously.
+Kommand encourages handlers to return domain events alongside their result. You can then persist those events to an outbox within the same transaction and
+publish them asynchronously.
 
 Key types provided:
 
@@ -158,7 +160,8 @@ Example wiring (suspend):
 // 1) Define your repository + publisher adapters in your application module
 class JdbcOutboxRepository(/* datasource, etc. */) : MessageOutboxRepository { /* ... */ }
 class KafkaEventPublisher(/* kafka client */) : DomainEventPublisher {
-    override suspend fun publish(event: DomainEvent) { /* serialize + send */ }
+    override suspend fun publish(event: DomainEvent) { /* serialize + send */
+    }
 }
 
 // 2) Build the bus with OutboxMiddleware to persist events returned by handlers
@@ -181,7 +184,9 @@ Projecting events to read models
 After your outbox publisher sends events to the outside world, you can route them to projection/update handlers using the provided `EventDispatcher`.
 
 ```kotlin
-val readModel = object { fun apply(event: DomainEvent) {} } // your projection
+val readModel = object {
+    fun apply(event: DomainEvent) {}
+} // your projection
 val dispatcher = EventDispatcher()
 
 dispatcher.register(UserCreatedEvent::class, object : DomainEventHandler<UserCreatedEvent> {
@@ -196,7 +201,8 @@ suspend fun project(consumedEvents: List<DomainEvent>) {
 }
 ```
 
-Note: If you prefer injecting an outbox repository or publisher directly into each handler, you can do so. Handlers can save or publish their own events; however, using `OutboxMiddleware` keeps handlers focused on pure business logic while ensuring events are captured consistently.
+Note: If you prefer injecting an outbox repository or publisher directly into each handler, you can do so. Handlers can save or publish their own events;
+however, using `OutboxMiddleware` keeps handlers focused on pure business logic while ensuring events are captured consistently.
 
 Build
 

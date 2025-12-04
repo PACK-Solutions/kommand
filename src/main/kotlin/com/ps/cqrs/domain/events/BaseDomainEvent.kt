@@ -1,7 +1,7 @@
 package com.ps.cqrs.domain.events
 
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 
 /**
  * Abstract base class for domain events with enhanced metadata.
@@ -83,7 +83,7 @@ abstract class BaseDomainEvent(
     override val eventId: String = UUID.randomUUID().toString(),
     override val occurredAt: Instant = Instant.now(),
     val causationId: String? = null,
-    val correlationId: String? = null
+    val correlationId: String? = null,
 ) : DomainEvent {
 
     /**

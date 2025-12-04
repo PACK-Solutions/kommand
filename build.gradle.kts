@@ -29,4 +29,6 @@ detekt {
     buildUponDefaultConfig = true
     allRules = false
     autoCorrect = true
+    // Ensure Gradle Detekt uses the repository's detekt.yml
+    config.setFrom(rootProject.files("detekt.yml"))
 }
