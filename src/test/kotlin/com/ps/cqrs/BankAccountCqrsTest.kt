@@ -5,6 +5,7 @@ import com.ps.cqrs.domain.events.DomainEvent
 import com.ps.cqrs.events.DomainEventHandler
 import com.ps.cqrs.events.DomainEventPublisher
 import com.ps.cqrs.events.EventDispatcher
+import com.ps.cqrs.query.Queries
 import com.ps.cqrs.testfixtures.Account
 import com.ps.cqrs.testfixtures.AccountId
 import com.ps.cqrs.testfixtures.AccountOpened
@@ -86,8 +87,10 @@ class BankAccountCqrsTest {
         registerDomainEventHandlers(dispatcher, readModel)
         published.forEach { event -> dispatcher.dispatch(event) }
 
-        val queryHandler = GetAccountBalanceQueryHandler(readModel)
-        val balance = queryHandler(GetAccountBalanceQuery(scenario.accountId))
+        val qbus = Queries.buildQueryBus {
+            handle(GetAccountBalanceQueryHandler(readModel))
+        }
+        val balance = qbus.execute<Long>(GetAccountBalanceQuery(scenario.accountId))
         assertEquals(80, balance)
     }
 }
@@ -109,14 +112,16 @@ private suspend fun runScenario(): Scenario {
     val account = Account(accountId)
     val testStart = java.time.Instant.now()
     val outbox = InMemoryOutbox()
-    val bus = SimpleCommandBus(
-        handlers = mapOf(
-            OpenAccount::class to OpenAccountHandler(account),
-            DepositMoney::class to DepositHandler(account),
-            WithdrawMoney::class to WithdrawHandler(account),
-        ),
-        middlewares = listOf(OutboxMiddleware(outbox))
-    )
+    val bus = Buses.buildCommandBus(
+        middlewares = listOf(
+            TransactionMiddleware(NoopTransactionManager),
+            OutboxMiddleware(outbox),
+        )
+    ) {
+        handle(OpenAccountHandler(account))
+        handle(DepositHandler(account))
+        handle(WithdrawHandler(account))
+    }
 
     val r1 = bus.execute(OpenAccount(accountId, initial = 100))
     val r2 = bus.execute(DepositMoney(accountId, amount = 50))

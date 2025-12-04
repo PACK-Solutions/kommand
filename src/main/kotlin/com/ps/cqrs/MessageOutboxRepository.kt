@@ -1,6 +1,7 @@
 package com.ps.cqrs
 
 import com.ps.cqrs.domain.events.DomainEvent
+import java.time.Instant
 
 /**
  * Repository abstraction for the Outbox pattern.
@@ -47,6 +48,8 @@ data class OutboxMessage(
     val id: MessageId,
     val event: DomainEvent,
     val retryCount: Int = 0,
+    val nextAttemptAt: Instant? = null,
+    val published: Boolean = false,
 )
 
 @JvmInline

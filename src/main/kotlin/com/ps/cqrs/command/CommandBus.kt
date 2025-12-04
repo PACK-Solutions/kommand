@@ -12,7 +12,7 @@ package com.ps.cqrs.command
  * data class CreateUser(val email: String) : Command<UserId>
  *
  * class CreateUserHandler : CommandHandler<CreateUser, UserId> {
- *     override fun handle(command: CreateUser): CommandResult<UserId> {
+ *     override suspend fun handle(command: CreateUser): CommandResult<UserId> {
  *         val id = UserId("123")
  *         val events = listOf(UserCreatedEvent(command.email))
  *         return CommandResult(result = Ok(id), events = events)

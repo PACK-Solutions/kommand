@@ -65,35 +65,6 @@ package com.ps.cqrs.query
  * 4. **Sorting**: Sort field and direction
  * 5. **Projections**: Which fields to include/exclude
  *
- * ## Query Flow:
- * ```
- * ┌──────────────┐      ┌─────────────┐      ┌──────────────────┐
- * │ Presentation │─────→│ QueryHandler│─────→│ Query Repository │
- * │   Layer      │      │             │      │ or Read Model    │
- * └──────────────┘      └─────────────┘      └──────────────────┘
- *                                                      │
- *                                                      ↓
- *                                             ┌─────────────────┐
- *                                             │ Database        │
- *                                             │ (Optimized)     │
- *                                             └─────────────────┘
- * ```
- *
- * ## CQRS: Separate Read and Write Models:
- * In CQRS (Command Query Responsibility Segregation), queries can use a separate
- * read model optimized for querying:
- *
- * - **Write Model** (Commands):
- *   - Normalized domain model
- *   - Enforces business rules
- *   - Optimized for consistency
- *
- * - **Read Model** (Queries):
- *   - Denormalized views
- *   - Optimized for specific queries
- *   - Can use different storage (e.g., Elasticsearch, Redis)
- *   - Updated via domain events
- *
  * ## Query Optimization Strategies:
  *
  * ### 1. Direct Database Queries:

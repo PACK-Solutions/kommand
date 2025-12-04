@@ -14,7 +14,10 @@ import com.ps.cqrs.command.CommandResult
  * ```kotlin
  * // Simple logging middleware
  * class LoggingMiddleware : CommandMiddleware {
- *     override fun <R> invoke(command: Command<R>, next: (Command<R>) -> CommandResult<R>): CommandResult<R> {
+ *     override suspend fun <R> invoke(
+ *         command: Command<R>,
+ *         next: suspend (Command<R>) -> CommandResult<R>
+ *     ): CommandResult<R> {
  *         println("Handling: ${command::class.simpleName}")
  *         val result = next(command)
  *         println("Handled with result: ${result.result}")
@@ -31,7 +34,7 @@ import com.ps.cqrs.command.CommandResult
 interface CommandMiddleware {
     /**
      * Intercepts the execution of [command]. Call [next] to continue the chain
-     * or return a [com.ps.cqrs.command.CommandResult] directly to short‑circuit.
+     * or return a [CommandResult] directly to short‑circuit.
      *
      * Implementations may transform the returned result, for example,
      * by appending [com.ps.cqrs.domain.events.DomainEvent]s.
