@@ -6,7 +6,7 @@ import com.ps.cqrs.command.CommandResult
 /**
  * Middleware that can observe, short‑circuit, or augment command handling.
  *
- * Middlewares are composed into a chain by [com.ps.cqrs.command.SimpleCommandBus] so that each
+ * Middlewares are composed into a chain by the Mediator so that each
  * middleware can run logic before and/or after the next component in the
  * chain (another middleware or the final [com.ps.cqrs.command.CommandHandler]).
  *
@@ -25,10 +25,12 @@ import com.ps.cqrs.command.CommandResult
  *     }
  * }
  *
- * val bus = SimpleCommandBus(
- *     handlers = mapOf(/* YourCommand::class to YourCommandHandler() */),
- *     middlewares = listOf(LoggingMiddleware())
- * )
+ * // Register with the mediator
+ * val mediator = MediatorDsl.buildMediator(
+ *     commandMiddlewares = listOf(LoggingMiddleware())
+ * ) {
+ *     handle(/* YourCommandHandler() */)
+ * }
  * ```
  */
 interface CommandMiddleware {

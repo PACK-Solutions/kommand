@@ -12,12 +12,13 @@ import com.ps.cqrs.command.CommandResult
  *
  * ## Example
  * ```kotlin
- * // Configure the bus with the outbox middleware
+ * // Configure the mediator with the outbox middleware
  * val outboxRepo: MessageOutboxRepository = InMemoryOutbox()
- * val bus = SimpleCommandBus(
- *     handlers = mapOf(/* command instance to handler */),
- *     middlewares = listOf(OutboxMiddleware(outboxRepo))
- * )
+ * val mediator = com.ps.cqrs.mediator.MediatorDsl.buildMediator(
+ *     commandMiddlewares = listOf(OutboxMiddleware(outboxRepo))
+ * ) {
+ *     handle(/* YourCommandHandler() */)
+ * }
  *
  * // Later, publish them out-of-band
  * val eventPublisher: DomainEventPublisher = DomainEventPublisher { println(it) }

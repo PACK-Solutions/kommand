@@ -1,15 +1,16 @@
 package com.ps.cqrs
 
-import com.ps.cqrs.command.CommandBusDsl.buildCommandBus
 import com.ps.cqrs.domain.events.BaseDomainEvent
 import com.ps.cqrs.domain.events.DomainEvent
 import com.ps.cqrs.events.DomainEventHandler
 import com.ps.cqrs.events.DomainEventPublisher
 import com.ps.cqrs.events.EventDispatcher
+import com.ps.cqrs.fixtures.*
+import com.ps.cqrs.mediator.Mediator
+import com.ps.cqrs.mediator.MediatorDsl
+import com.ps.cqrs.middleware.EventDispatchingMiddleware
 import com.ps.cqrs.middleware.OutboxMiddleware
 import com.ps.cqrs.middleware.TransactionMiddleware
-import com.ps.cqrs.query.QueryBusDsl.buildQueryBus
-import com.ps.cqrs.testfixtures.*
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -75,10 +76,44 @@ class BankAccountCqrsTest {
         registerDomainEventHandlers(dispatcher, readModel)
         published.forEach { event -> dispatcher.dispatch(event) }
 
-        val qbus = buildQueryBus {
+        val mediator = MediatorDsl.buildMediator {
             handle(GetAccountBalanceQueryHandler(readModel))
         }
-        val balance = qbus.execute<Long>(GetAccountBalanceQuery(scenario.accountId))
+        val balance: Long = mediator.ask(GetAccountBalanceQuery(scenario.accountId))
+        assertEquals(80, balance)
+    }
+
+    @Test
+    fun `synchronous projection via middleware updates read model immediately`() = runBlocking {
+        val accountId = AccountId("acc-sync-1")
+        val account = Account(accountId)
+        val outbox = InMemoryOutbox()
+
+        val readModel = AccountReadModel()
+        val dispatcher = EventDispatcher()
+        registerDomainEventHandlers(dispatcher, readModel)
+
+        val mediator = MediatorDsl.buildMediator(
+            commandMiddlewares = listOf(
+                TransactionMiddleware(NoopTransactionManager),
+                OutboxMiddleware(outbox),
+                EventDispatchingMiddleware(dispatcher),
+            ),
+        ) {
+            handle(OpenAccountHandler(account))
+            handle(DepositHandler(account))
+            handle(WithdrawHandler(account))
+
+            // Query handler uses the same read model updated by event handlers
+            handle(GetAccountBalanceQueryHandler(readModel))
+        }
+
+        mediator.send(OpenAccount(accountId, initial = 100))
+        mediator.send(DepositMoney(accountId, amount = 50))
+        mediator.send(WithdrawMoney(accountId, amount = 70))
+
+        // No outbox publish or manual dispatch needed; projection updated synchronously
+        val balance: Long = mediator.ask(GetAccountBalanceQuery(accountId))
         assertEquals(80, balance)
     }
 }
@@ -100,8 +135,8 @@ private suspend fun runScenario(): Scenario {
     val account = Account(accountId)
     val testStart = java.time.Instant.now()
     val outbox = InMemoryOutbox()
-    val bus = buildCommandBus(
-        middlewares = listOf(
+    val mediator: Mediator = MediatorDsl.buildMediator(
+        commandMiddlewares = listOf(
             TransactionMiddleware(NoopTransactionManager),
             OutboxMiddleware(outbox),
         ),
@@ -111,10 +146,10 @@ private suspend fun runScenario(): Scenario {
         handle(WithdrawHandler(account))
     }
 
-    val r1 = bus.execute(OpenAccount(accountId, initial = 100))
-    val r2 = bus.execute(DepositMoney(accountId, amount = 50))
-    val r3 = bus.execute(WithdrawMoney(accountId, amount = 70))
-    val r4 = bus.execute(WithdrawMoney(accountId, amount = 1000))
+    val r1 = mediator.send(OpenAccount(accountId, initial = 100))
+    val r2 = mediator.send(DepositMoney(accountId, amount = 50))
+    val r3 = mediator.send(WithdrawMoney(accountId, amount = 70))
+    val r4 = mediator.send(WithdrawMoney(accountId, amount = 1000))
 
     return Scenario(accountId, account, outbox, r1, r2, r3, r4, testStart)
 }

@@ -15,10 +15,12 @@ package com.ps.cqrs.query
  *     }
  * }
  *
- * val bus = SimpleQueryBus(
- *     handlers = mapOf(/* YourQuery::class to YourQueryHandler() */),
- *     middlewares = listOf(CachingMiddleware())
- * )
+ * // Register with the mediator
+ * val mediator = MediatorDsl.buildMediator(
+ *     queryMiddlewares = listOf(CachingMiddleware())
+ * ) {
+ *     handle(/* YourQueryHandler() */)
+ * }
  * ```
  */
 interface QueryMiddleware {

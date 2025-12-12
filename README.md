@@ -1,20 +1,21 @@
 Kommand
 ======
 
-A tiny, dependency‑light Command Bus for Kotlin/JVM. It helps you model application behavior as Commands handled by dedicated Handlers, with optional Middleware
-to intercept, log, validate, or transform execution. Results are returned in a simple wrapper so your application code stays explicit and testable.
+A tiny, dependency‑light Mediator for Kotlin/JVM. It helps you model application behavior as Commands and Queries handled by dedicated Handlers, with optional
+Middleware
+to intercept, log, validate, or transform execution. Results are returned explicitly so your application code stays clear and testable.
 
 What this library is for
 
-- Encapsulate actions as Command objects with a single handler each
-- Centralize dispatching through a CommandBus
-- Compose cross‑cutting concerns using Middleware (e.g., logging, metrics, tracing, validation)
+- Encapsulate actions as Command objects with a single handler each, and reads as Query objects
+- Centralize dispatching through a Mediator
+- Compose cross‑cutting concerns using Middleware (e.g., logging, metrics, tracing, validation) for commands and queries
 
 Highlights
 
-- Minimal surface: Command, CommandHandler, CommandBus (with SimpleCommandBus implementation), CommandMiddleware, DomainEvent, CommandResult
+- Minimal surface: Command, CommandHandler, Mediator, CommandMiddleware, DomainEvent, CommandResult, Query, QueryHandler, QueryMiddleware
 - Optional: DomainEventPublisher, MessageOutboxRepository, OutboxMiddleware, OutboxPublisher for the outbox pattern
-- EventDispatcher to route published domain events to one or many handlers
+- EventDispatchingMiddleware for in-process, synchronous projections via EventDispatcher
 - Straightforward generics for typed results
 - No reflection, no magic — just Kotlin
 
@@ -125,21 +126,19 @@ class LoggingMiddleware : CommandMiddleware {
 }
 ```
 
-4) Create the bus and execute (suspend)
+4) Build a mediator and execute (suspend)
 
 ```kotlin
-val bus = SimpleCommandBus(
-    handlers = mapOf(
-        // SimpleCommandBus maps handlers by the command KClass (type)
-        Greet::class to GreetHandler()
-    ),
-    middlewares = listOf(LoggingMiddleware())
-)
+val mediator = com.ps.cqrs.mediator.MediatorDsl.buildMediator(
+    commandMiddlewares = listOf(LoggingMiddleware())
+) {
+    handle(GreetHandler())
+}
 
 // Execute is suspend; run from a coroutine
-val result = kotlinx.coroutines.runBlocking { bus.execute(Greet("World")) }
+val result = kotlinx.coroutines.runBlocking { mediator.send(Greet("World")) }
 println(result.result) // -> Ok(Hello, World!)
-println(result.events) // -> [Logged(name=LoggingMiddleware handled Greet)] if your middleware adds events
+println(result.events) // -> events your handler/middleware produced
 ```
 
 Outbox pattern and event publishing
@@ -164,15 +163,16 @@ class KafkaEventPublisher(/* kafka client */) : DomainEventPublisher {
     }
 }
 
-// 2) Build the bus with OutboxMiddleware to persist events returned by handlers
+// 2) Build the mediator with OutboxMiddleware to persist events returned by handlers
 val outboxRepo = JdbcOutboxRepository()
-val bus = SimpleCommandBus(
-    handlers = mapOf(/* CommandKClass -> handler, e.g. CreateUser::class to CreateUserHandler() */),
-    middlewares = listOf(OutboxMiddleware(outboxRepo))
-)
+val mediator = com.ps.cqrs.mediator.MediatorDsl.buildMediator(
+    commandMiddlewares = listOf(com.ps.cqrs.middleware.OutboxMiddleware(outboxRepo))
+) {
+    handle(/* e.g. CreateUserHandler() */)
+}
 
 // 3) Execute commands as usual; events returned by handlers are saved to the outbox
-val res = kotlinx.coroutines.runBlocking { bus.execute(/* your command */) }
+val res = kotlinx.coroutines.runBlocking { mediator.send(/* your command */) }
 
 // 4) In a separate scheduler/worker, publish pending events (suspend)
 val publisher = OutboxPublisher(outboxRepo, KafkaEventPublisher())
@@ -204,6 +204,74 @@ suspend fun project(consumedEvents: List<DomainEvent>) {
 Note: If you prefer injecting an outbox repository or publisher directly into each handler, you can do so. Handlers can save or publish their own events;
 however, using `OutboxMiddleware` keeps handlers focused on pure business logic while ensuring events are captured consistently.
 
+Synchronous vs eventual projections (when can a query read the updated model?)
+
+Kommand supports two projection strategies. Choose based on your consistency and coupling needs:
+
+- Eventual projections (default):
+    - Configure OutboxMiddleware to persist emitted domain events atomically with your writes.
+    - Publish outbox events asynchronously (e.g., with OutboxPublisher) and project them using EventDispatcher in your projection worker.
+    - Your query/read model is updated eventually. A query executed immediately after `mediator.send(command)` may not reflect the new state yet.
+
+- Synchronous in-process projections:
+    - Add EventDispatchingMiddleware(dispatcher) to the command pipeline and register your DomainEventHandler projections with the same EventDispatcher.
+    - Place middlewares in this order: TransactionMiddleware -> OutboxMiddleware -> EventDispatchingMiddleware.
+    - With this setup, projections (e.g., read models) are updated during the same call to `send`. A query asked right after `send` can read the updated model.
+
+Example (synchronous projection):
+
+```kotlin
+val readModel = AccountReadModel()
+val dispatcher = EventDispatcher()
+
+// Register projection handlers
+dispatcher.register(AccountOpened::class, object : DomainEventHandler<AccountOpened> {
+    override suspend fun handle(event: AccountOpened) {
+        readModel.apply(event)
+    }
+})
+
+val mediator = MediatorDsl.buildMediator(
+    commandMiddlewares = listOf(
+        TransactionMiddleware(NoopTransactionManager),
+        OutboxMiddleware(outboxRepo),
+        EventDispatchingMiddleware(dispatcher), // must come after OutboxMiddleware
+    )
+) {
+    handle(OpenAccountHandler(domainAccount))
+    handle(GetAccountBalanceQueryHandler(readModel))
+}
+
+runBlocking {
+    mediator.send(OpenAccount(AccountId("acc-1"), initial = 100))
+    val balance: Long = mediator.ask(GetAccountBalanceQuery(AccountId("acc-1")))
+    println(balance) // reflects projection updated synchronously
+}
+```
+
+Queries with the Mediator
+
+Define a `Query` and a `QueryHandler`, then ask the mediator:
+
+```kotlin
+data class GetUserById(val id: String) : com.ps.cqrs.query.Query
+
+class GetUserByIdHandler(/* repo, etc. */) : com.ps.cqrs.query.QueryHandler<GetUserById, UserDto?> {
+    override suspend fun invoke(query: GetUserById): UserDto? = /* fetch */ null
+}
+
+val mediator = com.ps.cqrs.mediator.MediatorDsl.buildMediator {
+    handle(GetUserByIdHandler())
+}
+
+val dto: UserDto? = kotlinx.coroutines.runBlocking { mediator.ask(GetUserById("u-1")) }
+```
+
+Mediator-only API
+
+This library exposes the Mediator as the single public entry point. Legacy bus adapters and builders (`CommandBus`, `QueryBus`, and their DSLs) are now internal
+and not part of the public API. Build a mediator and use `send` for commands and `ask` for queries as shown above.
+
 Build
 
 - Using the Gradle wrapper: ./gradlew build (ensure the wrapper is executable on your system)
@@ -217,9 +285,10 @@ Why Kommand?
 
 Notes and design trade‑offs
 
-- Handler lookup key: `SimpleCommandBus` uses the command type (`KClass`) as the key in its `handlers` map:
-  `Map<KClass<out Command<*>>, CommandHandler<out Command<*>, *>>`.
-- Execute return value: `CommandBus.execute` returns the full `CommandResult<R>` (containing a `Result<R, CommandError>` and `events`). This lets callers
-  inspect success/error and emitted events explicitly.
-- Events: Handlers return domain events alongside the result in `CommandResult.events`. Middleware can publish them to a bus of your choice or aggregate them
-  for later processing.
+- Handler lookup key: the Mediator uses the request type (`KClass`) as the key in its internal maps, e.g.
+  `Map<KClass<out Command<*>>, CommandHandler<out Command<*>, *>>` for commands and
+  `Map<KClass<out Query>, QueryHandler<*, *>>` for queries.
+- Return values: `mediator.send(command)` returns the full `CommandResult<R>` (containing a `Result<R, CommandError>` and `events`).
+  `mediator.ask(query)` returns the query's value directly.
+- Events: Handlers return domain events alongside the result in `CommandResult.events`. Middleware (such as `OutboxMiddleware`) can persist
+  them for later publication, or you can publish them immediately in a custom middleware.

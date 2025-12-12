@@ -11,19 +11,20 @@ import com.ps.cqrs.command.CommandResult
  * Example
  * ```kotlin
  * val txManager: TransactionManager = NoopTransactionManager
- * val bus = SimpleCommandBus(
- *     handlers = mapOf(
- *     /* YourCommand::class to YourHandler() */),
+ * val mediator = com.ps.cqrs.mediator.MediatorDsl.buildMediator(
  *     // Place TransactionMiddleware BEFORE OutboxMiddleware
- *     middlewares = listOf(
- *     TransactionMiddleware(txManager),
- *     OutboxMiddleware(/* outbox */ object: MessageOutboxRepository {
- *         override suspend fun save(event: com.ps.cqrs.domain.events.DomainEvent) = MessageId("1")
- *         override suspend fun findUnpublished(limit: Int) = emptyList<OutboxMessage>()
- *         override suspend fun markAsPublished(id: MessageId) {}
- *         override suspend fun incrementRetryCount(id: MessageId) {}
- *     }))
- * )
+ *     commandMiddlewares = listOf(
+ *         TransactionMiddleware(txManager),
+ *         OutboxMiddleware(/* outbox */ object: com.ps.cqrs.MessageOutboxRepository {
+ *             override suspend fun save(event: com.ps.cqrs.domain.events.DomainEvent) = com.ps.cqrs.MessageId("1")
+ *             override suspend fun findUnpublished(limit: Int) = emptyList<com.ps.cqrs.OutboxMessage>()
+ *             override suspend fun markAsPublished(id: com.ps.cqrs.MessageId) {}
+ *             override suspend fun incrementRetryCount(id: com.ps.cqrs.MessageId) {}
+ *         })
+ *     )
+ * ) {
+ *     handle(/* YourCommandHandler() */)
+ * }
  * ```
  */
 class TransactionMiddleware(

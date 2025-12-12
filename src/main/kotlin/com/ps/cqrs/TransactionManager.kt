@@ -26,12 +26,13 @@ package com.ps.cqrs
  *     }
  * }
  *
- * // Wiring with the CommandBus
+ * // Wiring with the Mediator
  * val txManager = JdbcTransactionManager(ds)
- * val bus = SimpleCommandBus(
- *     handlers = mapOf(/* YourCommand::class to YourHandler() */),
- *     middlewares = listOf(TransactionMiddleware(txManager))
- * )
+ * val mediator = MediatorDsl.buildMediator(
+ *     commandMiddlewares = listOf(com.ps.cqrs.middleware.TransactionMiddleware(txManager))
+ * ) {
+ *     handle(/* YourCommandHandler() */)
+ * }
  * ```
  */
 interface TransactionManager {

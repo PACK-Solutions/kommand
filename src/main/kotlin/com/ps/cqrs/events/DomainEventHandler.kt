@@ -34,7 +34,7 @@ import com.ps.cqrs.domain.events.DomainEvent
  *     override suspend fun handle(event: UserRegisteredEvent) {
  *         val user = userRepository.findById(event.userId) ?: return
  *
- *         emailService.send(
+ *         emailService.ask(
  *             to = user.email,
  *             subject = "Welcome!",
  *             body = "Welcome to our platform, ${user.name}!"
@@ -87,10 +87,10 @@ import com.ps.cqrs.domain.events.DomainEvent
  * ```kotlin
  * override suspend fun handle(event: UserRegisteredEvent) {
  *     try {
- *         emailService.send(...)
+ *         emailService.ask(...)
  *     } catch (e: EmailServiceException) {
  *         // Log error but don't fail the entire event processing
- *         // logger.error("Failed to send welcome email", e)
+ *         // logger.error("Failed to ask welcome email", e)
  *         // Optionally: Store in dead letter queue for retry
  *         // deadLetterQueue.add(event, e)
  *     }
@@ -101,7 +101,7 @@ import com.ps.cqrs.domain.events.DomainEvent
  * Event handlers are easy to test in isolation:
  * ```kotlin
  * @Test
- * fun `should send welcome email when user registered`() = runTest {
+ * fun `should ask welcome email when user registered`() = runTest {
  *     // Given
  *     val event = UserRegisteredEvent(
  *         userId = "user-123",
@@ -111,14 +111,14 @@ import com.ps.cqrs.domain.events.DomainEvent
  *     val emailService = mockk<EmailService>()
  *     val handler = SendWelcomeEmailHandler(emailService, userRepository)
  *
- *     coEvery { emailService.send(any(), any(), any()) } just Runs
+ *     coEvery { emailService.ask(any(), any(), any()) } just Runs
  *
  *     // When
  *     handler.handle(event)
  *
  *     // Then
  *     coVerify {
- *         emailService.send(
+ *         emailService.ask(
  *             to = "john@example.com",
  *             subject = "Welcome!",
  *             body = any()

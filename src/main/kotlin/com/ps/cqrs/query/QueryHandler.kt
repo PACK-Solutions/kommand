@@ -40,5 +40,5 @@ interface QueryHandler<in Q : Query, out R> {
      * @param query The query to handle
      * @return The result of the query
      */
-    public suspend operator fun invoke(query: Q): R
+    suspend operator fun invoke(query: Q): R
 }
