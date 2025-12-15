@@ -31,12 +31,12 @@ import com.ps.cqrs.events.EventDispatcher
  * // 2) Build the mediator with Transaction -> Outbox -> EventDispatching ordering
  * val mediator = com.ps.cqrs.mediator.MediatorDsl.buildMediator(
  *     commandMiddlewares = listOf(
- *         com.ps.cqrs.middleware.TransactionMiddleware(com.ps.cqrs.NoopTransactionManager),
- *         com.ps.cqrs.middleware.OutboxMiddleware(/* your outbox repo */ object: com.ps.cqrs.MessageOutboxRepository {
- *             override suspend fun save(event: com.ps.cqrs.domain.events.DomainEvent) = com.ps.cqrs.MessageId("1")
- *             override suspend fun findUnpublished(limit: Int) = emptyList<com.ps.cqrs.OutboxMessage>()
- *             override suspend fun markAsPublished(id: com.ps.cqrs.MessageId) {}
- *             override suspend fun incrementRetryCount(id: com.ps.cqrs.MessageId) {}
+ *         com.ps.cqrs.middleware.TransactionMiddleware(com.ps.cqrs.transaction.NoopTransactionManager),
+ *         com.ps.cqrs.middleware.OutboxMiddleware(/* your outbox repo */ object: com.ps.cqrs.outbox.MessageOutboxRepository {
+ *             override suspend fun save(event: com.ps.cqrs.domain.events.DomainEvent) = com.ps.cqrs.outbox.MessageId("1")
+ *             override suspend fun findUnpublished(limit: Int) = emptyList<com.ps.cqrs.outbox.OutboxMessage>()
+ *             override suspend fun markAsPublished(id: com.ps.cqrs.outbox.MessageId) {}
+ *             override suspend fun incrementRetryCount(id: com.ps.cqrs.outbox.MessageId) {}
  *         }),
  *         com.ps.cqrs.middleware.EventDispatchingMiddleware(dispatcher), // must come after OutboxMiddleware
  *     )

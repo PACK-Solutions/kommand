@@ -11,7 +11,11 @@ repositories {
 }
 
 dependencies {
-    testImplementation(kotlin("test"))
+    // Kotest (unit testing)
+    testImplementation("io.kotest:kotest-runner-junit5:6.0.7")
+    testImplementation("io.kotest:kotest-assertions-core:6.0.7")
+
+    // Coroutines (used across main and tests)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("com.michael-bull.kotlin-result:kotlin-result:2.1.0")
     // Detekt formatting plugin (must match Detekt plugin version)

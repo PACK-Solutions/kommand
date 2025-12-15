@@ -1,14 +1,14 @@
 package com.ps.cqrs.middleware
 
-import com.ps.cqrs.MessageOutboxRepository
 import com.ps.cqrs.command.Command
 import com.ps.cqrs.command.CommandResult
+import com.ps.cqrs.outbox.MessageOutboxRepository
 
 /**
- * Middleware that persists emitted domain events to a [com.ps.cqrs.MessageOutboxRepository].
+ * Middleware that persists emitted domain events to a [MessageOutboxRepository].
  *
  * This lets you keep handler code focused on producing events while ensuring
- * they are captured for later publication by [com.ps.cqrs.OutboxPublisher].
+ * they are captured for later publication by [com.ps.cqrs.outbox.OutboxPublisher].
  *
  * ## Example
  * ```kotlin

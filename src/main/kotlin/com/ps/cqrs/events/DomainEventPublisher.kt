@@ -7,7 +7,7 @@ import com.ps.cqrs.domain.events.DomainEvent
  *
  * In applications that use the outbox pattern, you typically persist events
  * to an outbox within the same transaction as your command handling, and then
- * use an [com.ps.cqrs.OutboxPublisher] to call into this publisher out of band.
+ * use an [com.ps.cqrs.outbox.OutboxPublisher] to call into this publisher out of band.
  *
  * ## Example
  * ```kotlin

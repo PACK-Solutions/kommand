@@ -1,4 +1,4 @@
-package com.ps.cqrs
+package com.ps.cqrs.transaction
 
 /**
  * Abstraction over a transaction boundary.

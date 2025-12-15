@@ -1,12 +1,12 @@
 package com.ps.cqrs.middleware
 
-import com.ps.cqrs.TransactionManager
 import com.ps.cqrs.command.Command
 import com.ps.cqrs.command.CommandResult
+import com.ps.cqrs.transaction.TransactionManager
 
 /**
  * Middleware that ensures command handling (and inner middlewares like [OutboxMiddleware])
- * execute within a transaction boundary provided by [com.ps.cqrs.TransactionManager].
+ * execute within a transaction boundary provided by [TransactionManager].
  *
  * Example
  * ```kotlin
@@ -15,11 +15,11 @@ import com.ps.cqrs.command.CommandResult
  *     // Place TransactionMiddleware BEFORE OutboxMiddleware
  *     commandMiddlewares = listOf(
  *         TransactionMiddleware(txManager),
- *         OutboxMiddleware(/* outbox */ object: com.ps.cqrs.MessageOutboxRepository {
- *             override suspend fun save(event: com.ps.cqrs.domain.events.DomainEvent) = com.ps.cqrs.MessageId("1")
- *             override suspend fun findUnpublished(limit: Int) = emptyList<com.ps.cqrs.OutboxMessage>()
- *             override suspend fun markAsPublished(id: com.ps.cqrs.MessageId) {}
- *             override suspend fun incrementRetryCount(id: com.ps.cqrs.MessageId) {}
+ *         OutboxMiddleware(/* outbox */ object: com.ps.cqrs.outbox.MessageOutboxRepository {
+ *             override suspend fun save(event: com.ps.cqrs.domain.events.DomainEvent) = com.ps.cqrs.outbox.MessageId("1")
+ *             override suspend fun findUnpublished(limit: Int) = emptyList<com.ps.cqrs.outbox.OutboxMessage>()
+ *             override suspend fun markAsPublished(id: com.ps.cqrs.outbox.MessageId) {}
+ *             override suspend fun incrementRetryCount(id: com.ps.cqrs.outbox.MessageId) {}
  *         })
  *     )
  * ) {

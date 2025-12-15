@@ -1,9 +1,9 @@
 package com.ps.cqrs.fixtures
 
-import com.ps.cqrs.MessageId
-import com.ps.cqrs.MessageOutboxRepository
-import com.ps.cqrs.OutboxMessage
 import com.ps.cqrs.domain.events.DomainEvent
+import com.ps.cqrs.outbox.MessageId
+import com.ps.cqrs.outbox.MessageOutboxRepository
+import com.ps.cqrs.outbox.OutboxMessage
 
 // ---- In-memory Outbox for tests ----
 class InMemoryOutbox : MessageOutboxRepository {

@@ -1,4 +1,4 @@
-package com.ps.cqrs
+package com.ps.cqrs.outbox
 
 import com.ps.cqrs.domain.events.DomainEvent
 import java.time.Instant

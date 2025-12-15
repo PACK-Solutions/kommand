@@ -11,112 +11,109 @@ import com.ps.cqrs.mediator.MediatorDsl
 import com.ps.cqrs.middleware.EventDispatchingMiddleware
 import com.ps.cqrs.middleware.OutboxMiddleware
 import com.ps.cqrs.middleware.TransactionMiddleware
-import kotlinx.coroutines.runBlocking
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import com.ps.cqrs.outbox.OutboxPublisher
+import com.ps.cqrs.transaction.NoopTransactionManager
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
-class BankAccountCqrsTest {
+class BankAccountCqrsTest : FunSpec(
+    {
 
-    @Test
-    fun `commands update balance and emit expected events`() = runBlocking {
-        val scenario = runScenario()
+        test("commands update balance and emit expected events") {
+            val scenario = runScenario()
 
-        assertEquals(1, scenario.r1.events.size)
-        assertTrue(scenario.r1.events.first() is AccountOpened)
-        assertTrue(scenario.r2.events.single() is MoneyDeposited)
-        assertTrue(scenario.r3.events.single() is MoneyWithdrawn)
-        assertTrue(scenario.r4.events.single() is OverdraftRejected)
-        assertEquals(80, scenario.account.balance)
-    }
-
-    @Test
-    fun `events carry base metadata and unique ids`() = runBlocking {
-        val scenario = runScenario()
-        val all = scenario.allEvents()
-        assertBaseEventMetadata(all, scenario.accountId, scenario.testStart)
-        // ids unique
-        assertEquals(all.size, all.map { it.eventId }.toSet().size)
-    }
-
-    @Test
-    fun `outbox stores all emitted events`() = runBlocking {
-        val scenario = runScenario()
-        val pending = scenario.outbox.findUnpublished()
-        assertEquals(4, pending.size)
-        pending.forEach { msg ->
-            assertTrue(msg.event is BaseDomainEvent)
-            assertEquals(scenario.accountId.value, msg.event.aggregateId)
-        }
-    }
-
-    @Test
-    fun `publishing moves events and preserves metadata`() = runBlocking {
-        val scenario = runScenario()
-        val published = mutableListOf<DomainEvent>()
-        val publisher = DomainEventPublisher { event -> published += event }
-        OutboxPublisher(scenario.outbox, publisher).publishPendingEvents()
-
-        assertEquals(4, published.size)
-        published.forEach { ev ->
-            assertTrue(ev is BaseDomainEvent)
-            assertEquals(scenario.accountId.value, ev.aggregateId)
-        }
-    }
-
-    @Test
-    fun `projection updates read model and answers query`() = runBlocking {
-        val scenario = runScenario()
-        val published = mutableListOf<DomainEvent>()
-        val publisher = DomainEventPublisher { event -> published += event }
-        OutboxPublisher(scenario.outbox, publisher).publishPendingEvents()
-
-        val readModel = AccountReadModel()
-        val dispatcher = EventDispatcher()
-        registerDomainEventHandlers(dispatcher, readModel)
-        published.forEach { event -> dispatcher.dispatch(event) }
-
-        val mediator = MediatorDsl.buildMediator {
-            handle(GetAccountBalanceQueryHandler(readModel))
-        }
-        val balance: Long = mediator.ask(GetAccountBalanceQuery(scenario.accountId))
-        assertEquals(80, balance)
-    }
-
-    @Test
-    fun `synchronous projection via middleware updates read model immediately`() = runBlocking {
-        val accountId = AccountId("acc-sync-1")
-        val account = Account(accountId)
-        val outbox = InMemoryOutbox()
-
-        val readModel = AccountReadModel()
-        val dispatcher = EventDispatcher()
-        registerDomainEventHandlers(dispatcher, readModel)
-
-        val mediator = MediatorDsl.buildMediator(
-            commandMiddlewares = listOf(
-                TransactionMiddleware(NoopTransactionManager),
-                OutboxMiddleware(outbox),
-                EventDispatchingMiddleware(dispatcher),
-            ),
-        ) {
-            handle(OpenAccountHandler(account))
-            handle(DepositHandler(account))
-            handle(WithdrawHandler(account))
-
-            // Query handler uses the same read model updated by event handlers
-            handle(GetAccountBalanceQueryHandler(readModel))
+            scenario.r1.events shouldHaveSize 1
+            scenario.r1.events.first().shouldBeInstanceOf<AccountOpened>()
+            scenario.r2.events.single().shouldBeInstanceOf<MoneyDeposited>()
+            scenario.r3.events.single().shouldBeInstanceOf<MoneyWithdrawn>()
+            scenario.r4.events.single().shouldBeInstanceOf<OverdraftRejected>()
+            scenario.account.balance shouldBe 80
         }
 
-        mediator.send(OpenAccount(accountId, initial = 100))
-        mediator.send(DepositMoney(accountId, amount = 50))
-        mediator.send(WithdrawMoney(accountId, amount = 70))
+        test("events carry base metadata and unique ids") {
+            val scenario = runScenario()
+            val all = scenario.allEvents()
+            assertBaseEventMetadata(all, scenario.accountId, scenario.testStart)
+            // ids unique
+            all.size shouldBe all.map { it.eventId }.toSet().size
+        }
 
-        // No outbox publish or manual dispatch needed; projection updated synchronously
-        val balance: Long = mediator.ask(GetAccountBalanceQuery(accountId))
-        assertEquals(80, balance)
-    }
-}
+        test("outbox stores all emitted events") {
+            val scenario = runScenario()
+            val pending = scenario.outbox.findUnpublished()
+            pending.size shouldBe 4
+            pending.forEach { msg ->
+                (msg.event is BaseDomainEvent).shouldBeTrue()
+                msg.event.aggregateId shouldBe scenario.accountId.value
+            }
+        }
+
+        test("publishing moves events and preserves metadata") {
+            val scenario = runScenario()
+            val published = mutableListOf<DomainEvent>()
+            val publisher = DomainEventPublisher { event -> published += event }
+            OutboxPublisher(scenario.outbox, publisher).publishPendingEvents()
+
+            published.size shouldBe 4
+            published.forEach { ev ->
+                (ev is BaseDomainEvent).shouldBeTrue()
+                ev.aggregateId shouldBe scenario.accountId.value
+            }
+        }
+
+        test("projection updates read model and answers query") {
+            val scenario = runScenario()
+            val published = mutableListOf<DomainEvent>()
+            val publisher = DomainEventPublisher { event -> published += event }
+            OutboxPublisher(scenario.outbox, publisher).publishPendingEvents()
+
+            val readModel = AccountReadModel()
+            val dispatcher = EventDispatcher()
+            registerDomainEventHandlers(dispatcher, readModel)
+            published.forEach { event -> dispatcher.dispatch(event) }
+
+            val mediator = MediatorDsl.buildMediator {
+                handle(GetAccountBalanceQueryHandler(readModel))
+            }
+            val balance: Long = mediator.ask(GetAccountBalanceQuery(scenario.accountId))
+            balance shouldBe 80
+        }
+
+        test("synchronous projection via middleware updates read model immediately") {
+            val accountId = AccountId("acc-sync-1")
+            val account = Account(accountId)
+            val outbox = InMemoryOutbox()
+
+            val readModel = AccountReadModel()
+            val dispatcher = EventDispatcher()
+            registerDomainEventHandlers(dispatcher, readModel)
+
+            val mediator = MediatorDsl.buildMediator(
+                commandMiddlewares = listOf(
+                    TransactionMiddleware(NoopTransactionManager),
+                    OutboxMiddleware(outbox),
+                    EventDispatchingMiddleware(dispatcher),
+                ),
+            ) {
+                handle(OpenAccountHandler(account))
+                handle(DepositHandler(account))
+                handle(WithdrawHandler(account))
+
+                handle(GetAccountBalanceQueryHandler(readModel))
+            }
+
+            mediator.send(OpenAccount(accountId, initial = 100))
+            mediator.send(DepositMoney(accountId, amount = 50))
+            mediator.send(WithdrawMoney(accountId, amount = 70))
+
+            val balance: Long = mediator.ask(GetAccountBalanceQuery(accountId))
+            balance shouldBe 80
+        }
+    },
+)
 
 // --- helpers ---
 private data class Scenario(
@@ -164,10 +161,10 @@ private fun assertBaseEventMetadata(
 ) {
     val now = java.time.Instant.now()
     events.forEach { ev ->
-        assertEquals(accountId.value, ev.aggregateId)
-        assertTrue(ev.eventId.isNotBlank())
-        assertTrue(!ev.occurredAt.isBefore(testStart))
-        assertTrue(!ev.occurredAt.isAfter(now))
+        ev.aggregateId.shouldBe(accountId.value)
+        (ev.eventId.isNotBlank()).shouldBe(true)
+        (!ev.occurredAt.isBefore(testStart)).shouldBe(true)
+        (!ev.occurredAt.isAfter(now)).shouldBe(true)
     }
 }
 
